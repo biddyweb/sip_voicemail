@@ -34,6 +34,13 @@ import javax.servlet.sip.SipServlet;
 import javax.servlet.sip.SipServletRequest;
 import javax.servlet.sip.SipServletResponse;
 import javax.servlet.sip.SipSession;
+import javax.servlet.sip.ServletTimer;
+import javax.servlet.sip.SipApplicationSession;
+import javax.servlet.sip.SipURI;
+import javax.servlet.sip.TimerListener;
+import javax.servlet.sip.TimerService;
+import javax.servlet.sip.SipSession.State;
+
 
 import org.apache.log4j.Logger;
 
@@ -43,6 +50,11 @@ public class SimpleSipServlet extends SipServlet implements SipErrorListener,
 	private static Logger logger = Logger.getLogger(SimpleSipServlet.class);
 	private static final String CONTACT_HEADER = "Contact";
 	private SipFactory sipFactory;
+	
+	private static final String CALLEE_SEND_BYE = "YouSendBye";
+    private static final int DEFAULT_BYE_DELAY = 60000;
+    private int byeDelay = DEFAULT_BYE_DELAY;
+
 	
 	public SimpleSipServlet() {
 	}
@@ -64,10 +76,24 @@ public class SimpleSipServlet extends SipServlet implements SipErrorListener,
 	}
 	
 	@Override
-	protected void doInvite(SipServletRequest req) throws ServletException,
+	protected void doInvite(SipServletRequest request) throws ServletException,
 			IOException {
-		logger.info("Click2Dial don't handle INVITE. Here's the one we got :  " + req.toString());
-		
+		if (logger.isInfoEnabled()) {
+			logger.info("Simple Servlet: Got request:\n" + request.getMethod());
+		}
+		SipServletResponse sipServletResponse = request
+				.createResponse(SipServletResponse.SC_RINGING);
+		sipServletResponse.send();
+		sipServletResponse = request.createResponse(SipServletResponse.SC_OK);
+		sipServletResponse.send();
+		if (CALLEE_SEND_BYE
+				.equalsIgnoreCase(((SipURI) request.getTo().getURI()).getUser())) {
+			TimerService timer = (TimerService) getServletContext()
+					.getAttribute(TIMER_SERVICE);
+			timer.createTimer(request.getApplicationSession(), byeDelay, false,
+					request.getSession().getId());
+		}
+
 	}
 	
 	@Override
